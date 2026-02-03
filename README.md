@@ -1,6 +1,6 @@
-Modular Data Management & ETL Pipelines
-Overview & Motivation
+# Modular Data Management & ETL Pipelines
 
-Modern software systems typically operate across multiple environments—development, testing, sandbox, UAT, staging, and production. For effective development and debugging, engineers need access to realistic, production-like data. However, production databases often contain sensitive or confidential information, making direct usage unsafe or non-compliant.
+## Purpose
+Modern software systems operate across multiple environments such as development, testing, sandbox, UAT, staging, and production. To build and debug features effectively, engineers need access to production-like data. However, production databases often contain sensitive or confidential information and cannot be safely shared.
 
-This project implements a modular, configurable ETL data pipeline that automates the process of copying production data while sanitizing, obfuscating, or minimizing sensitive fields before distributing it to non-production environments. The pipeline is designed to balance data realism, privacy, performance, and cost efficiency, ensuring downstream environments receive high-quality data without exposing confidential information.
+This project implements a configurable, batch-oriented ETL data pipeline that copies production data while sanitizing, obfuscating, or minimizing sensitive fields before distributing it to non-production environments. The goal is to preserve data realism while ensuring privacy, compliance, and efficient resource usage.
