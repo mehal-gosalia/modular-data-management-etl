@@ -1,0 +1,63 @@
+default_retry: &retry
+  retries: 3
+  retry_delay: 300
+
+default_database: &database
+  collections: {customers: {}, accounts: {}, transactions: {}}
+  batch_size: 1000
+  filter_criteria: all
+  retry_policy: *retry
+
+pipelines:
+  - step: copy_prod_to_clean
+    type: copy
+    order: 1
+    source_db: financial_data_prod
+    dest_db: financial_data_clean
+    <<: *database
+    
+  - step: sanitize_clean
+    type: sanitize_obfuscate
+    order: 2
+    source_db: financial_data_clean
+    dest_db: financial_data_clean
+    collections:
+      customers:
+        username: {strategy: substitute, params: {field_type: username}}     
+        name: {strategy: substitute, params: {field_type: name}}
+        address: {strategy: redact, params: {preset: mask_address_digits}}
+        active: {strategy: redact, params: {preset: mask_all}}
+        email: {strategy: redact, params: {regex: '(^[^@]+)', replacement: '***'}}
+        birthdate: {strategy: substitute, params: {field_type: birthdate}}
+      accounts:
+        account_id: {strategy: hash_salt}
+        limit: {strategy: perturb}
+      transactions:
+        account_id: {strategy: hash_salt }
+        transaction_count: {strategy: perturb}
+        bucket_start_date: {strategy: substitute, params: {field_type: date}}
+        bucket_end_date: {strategy: substitute, params: {field_type: date}}
+
+  - step: copy_clean_to_mini
+    type: copy
+    order: 3
+    source_db: financial_data_clean
+    dest_db: financial_data_mini
+    <<: *database
+
+  - step: minimize_mini
+    type: minimize
+    order: 4
+    source_db: financial_data_mini
+    dest_db: financial_data_mini
+    collections:
+      customers: {strategy: sample, params: {percentage: 0.1}}
+      accounts: {strategy: sample, params: {percentage: 0.1}}    
+      transactions: {strategy: sample, params: {percentage: 0.1}} 
+
+  - step: copy_mini_to_dev
+    type: copy
+    order: 5
+    source_db: financial_data_mini
+    dest_db: financial_data_dev
+    <<: *database

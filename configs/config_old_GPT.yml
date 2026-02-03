@@ -1,0 +1,79 @@
+default_retry: &retry
+  retries: 3
+  retry_delay: 300
+
+default_database: &database
+  batch_size: 1000
+  filter_criteria: all
+  retry_policy: *retry
+
+pipelines:
+  # Copy Module
+  copy:
+    - source_db_name: financial_data_prod
+      dest_db_name: financial_data_clean
+      <<: *database
+
+    - source_db_name: financial_data_clean
+      dest_db_name: financial_data_mini
+      <<: *database
+
+    - source_db_name: financial_data_mini
+      dest_db_name: financial_data_dev
+      <<: *database
+
+  # Sanitize/Obfuscate Module
+  sanitize_obfuscate:
+    - source_db_name: financial_data_clean
+      dest_db_name: financial_data_clean
+      collections:
+        customers:
+          username:
+            strategy: substitute
+            params: {type: username}
+          name:
+            strategy: substitute
+            params: {type: name}
+          address:            
+            strategy: redact
+            params: {preset: mask_address_digits}   
+          active:
+            strategy: redact
+            params: {preset: mask_all}
+          email:
+            strategy: redact
+            params: {regex: '(^[^@]+)', replacement: '***'}
+          birthdate:
+            strategy: substitute
+            params: {type: birthdate}
+        accounts:
+          account_id:
+            strategy: hash_salt
+          limit:
+            strategy: perturb
+        transactions:
+          account_id:
+            strategy: hash_salt 
+          transaction_count:
+            strategy: perturb
+          bucket_start_date:
+            strategy: substitute
+            params: {type: date}
+          bucket_end_date:
+            strategy: substitute
+            params: {type: date}
+
+  # Minimize Module
+  minimize:
+    - source_db_name: financial_data_mini
+      dest_db_name: financial_data_mini
+      collections:
+        customers:
+          strategy: sample
+          params: {percentage: 0.1}
+        accounts:
+          strategy: sample
+          params: {percentage: 0.1}
+        transactions:
+          strategy: sample
+          params: {percentage: 0.1}
